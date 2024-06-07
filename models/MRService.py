@@ -1,0 +1,36 @@
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy import Column, Integer, String, Float
+
+Base = declarative_base()
+
+class MRService(Base):
+    __tablename__ = 'MRService'
+    InstitutionCode = Column(String)
+    CollectionCode = Column(String)
+    CatalogNumber = Column(String)
+    IndividualCount = Column(Integer)
+    ScientificName = Column(String)
+    Family = Column(String)
+    PreparationType = Column(String)
+    Tissues = Column(String)
+    Latitude = Column(Float)
+    Longitude = Column(Float)
+    CoordinateUncertaintyInMeters = Column(Float)
+    HorizontalDatum = Column(String)
+    Country = Column(String)
+    StateProvince = Column(String)
+    County = Column(String)
+    Island = Column(String)
+    IslandGroup = Column(String)
+    Locality = Column(String)
+    VerbatimElevation = Column(String)
+    VerbatimDepth = Column(String)
+    YearCollected = Column(Integer)
+    MonthCollected = Column(Integer)
+    DayCollected = Column(Integer)
+    Collector = Column(String)
+    GeorefMethod = Column(String)
+    LatLongComments = Column(String)
+    BasisOfRecord = Column(String)
+    Remarks = Column(String)
+    DateLastModified = Column(String)

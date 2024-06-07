@@ -1,0 +1,36 @@
+from pydantic import BaseModel
+from typing import List, Optional
+
+class Occurrence(BaseModel):
+    institutionCode: Optional[str]
+    collectionCode: Optional[str]
+    catalogNumber: Optional[str]
+    individualCount: Optional[str]
+    scientificName: Optional[str]
+    family: Optional[str]
+    preparationType: Optional[str]
+    tissues: Optional[str]
+    latitude: Optional[str]
+    longitude: Optional[str]
+    coordinateUncertaintyInMeters: Optional[str]
+    horizontalDatum: Optional[str]
+    country: Optional[str]
+    stateProvince: Optional[str]
+    county: Optional[str]
+    island: Optional[str]
+    islandGroup: Optional[str]
+    locality: Optional[str]
+    verbatimElevation: Optional[str]
+    verbatimDepth: Optional[str]
+    yearCollected: Optional[str]
+    monthCollected: Optional[str]
+    dayCollected: Optional[str]
+    collector: Optional[str]
+    georefMethod: Optional[str]
+    latLongComments: Optional[str]
+    basisOfRecord: Optional[str]
+    remarks: Optional[str]
+    dateLastModified: Optional[str]
+
+class OccurrenceResponse(BaseModel):
+    occurrences: List[Occurrence]
