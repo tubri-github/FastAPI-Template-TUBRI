@@ -13,7 +13,7 @@ from models.Occurrence import OccurrenceResponse,Occurrence
 
 router = APIRouter()
 
-DATABASE_URL = "postgresql://postgres:p@localhost:5432/fn2"
+DATABASE_URL = "postgresql://postgres:postgres@localhost:5432/fn2"
 
 engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
