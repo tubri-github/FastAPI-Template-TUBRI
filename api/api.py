@@ -3,35 +3,21 @@
 @Des: api router
 """
 from fastapi import APIRouter, Request,Depends
+from config import settings
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker, Session
 from typing import List, Optional
-from pydantic import BaseModel
 from models.Occurrence import OccurrenceResponse,Occurrence
+from models.TaxaResponse import TaxaResponse,TaxaNumer
 
 
 
 router = APIRouter()
 
-DATABASE_URL = "postgresql://postgres:postgres@localhost:5432/fn2"
+DATABASE_URL = settings.DATABASE_URL
 
 engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-
-class SearchParams(BaseModel):
-    vtaxon: Optional[str] = None
-    vlocation: Optional[str] = None
-    vcatalognumber: Optional[str] = None
-    vdaterange: Optional[str] = None
-    vother: Optional[str] = None
-    vpoly: Optional[str] = None
-    vmap: Optional[str] = None
-    vstrict: bool = False
-    vstartrl: Optional[int] = None
-    vrlcount: Optional[int] = None
-    vcols: Optional[str] = None
-    voutputtype: bool = False
-    vdebug: bool = False
 
 def get_db():
     db = SessionLocal()
@@ -40,14 +26,31 @@ def get_db():
     finally:
         db.close()
 
+
+# vlocation: Optional[str] = None,
+# vcatalognumber: Optional[str] = None,
+# vdaterange: Optional[str] = None,
+# vother: Optional[str] = None,
+# vpoly: Optional[str] = None,
+# vmap: Optional[str] = None,
+# vstrict: bool = False,
+# vstartrl: Optional[int] = None,
+# vrlcount: Optional[int] = None,
+# vcols: Optional[str] = None,
+# voutputtype: bool = False,
+# vdebug: bool = False, db: Session = Depends(get_db)):
+
 @router.get("/occurrence/",response_model=OccurrenceResponse,tags=["Occurrence"])
-async def occurrence_search(vtaxon: Optional[str] = None,
-    vlocation: Optional[str] = None,
-    vcatalognumber: Optional[str] = None,
-    vdaterange: Optional[str] = None,
-    vother: Optional[str] = None,
-    vpoly: Optional[str] = None,
-    vmap: Optional[str] = None,
+async def occurrence_search(
+    t: Optional[str] = None,
+    l: Optional[str] = None,
+    c: Optional[str] = None,
+    d: Optional[str] = None,
+    q: Optional[str] = None,
+    p: Optional[str] = None,
+    m: Optional[str] = None,
+    fmt: Optional[str] = None,
+    att: Optional[str] = None,
     vstrict: bool = False,
     vstartrl: Optional[int] = None,
     vrlcount: Optional[int] = None,
@@ -61,13 +64,13 @@ async def occurrence_search(vtaxon: Optional[str] = None,
         )
     """)
     params = {
-        "vtaxon": vtaxon,
-        "vlocation": vlocation,
-        "vcatalognumber": vcatalognumber,
-        "vdaterange": vdaterange,
-        "vother": vother,
-        "vpoly": vpoly,
-        "vmap": vmap,
+        "vtaxon": t,
+        "vlocation": l,
+        "vcatalognumber": c,
+        "vdaterange": d,
+        "vother": q,
+        "vpoly": p,
+        "vmap": m,
         "vstrict": vstrict,
         "vstartrl": vstartrl,
         "vrlcount": vrlcount,
@@ -112,12 +115,42 @@ async def occurrence_search(vtaxon: Optional[str] = None,
     ]
     return OccurrenceResponse(occurrences=occurrences)
 
-
-# api_router.post("/test/oath2", tags=["测试oath2授权"])(test_oath2)
-# api_router.include_router(user.router, prefix='/admin', tags=["用户管理"])
-# api_router.include_router(role.router, prefix='/admin', tags=["角色管理"])
-# api_router.include_router(access.router, prefix='/admin', tags=["权限管理"])
-# api_router.include_router(websocket.router, prefix='/ws', tags=["WebSocket"])
-# api_router.include_router(wechat.router, prefix='/wechat', tags=["微信授权"])
-# api_router.include_router(sms.router, prefix='/sms', tags=["短信接口"])
-# api_router.include_router(cos.router, prefix='/cos', tags=["对象存储接口"])
+@router.get("/taxa/",response_model=TaxaResponse,tags=["Taxa"])
+async def taxa_num(
+    t: Optional[str] = None,
+    l: Optional[str] = None,
+    c: Optional[str] = None,
+    d: Optional[str] = None,
+    q: Optional[str] = None,
+    p: Optional[str] = None,
+    m: Optional[str] = None,
+    fmt: Optional[str] = None,
+    att: Optional[str] = None,
+    vstrict: bool = False,
+    vdebug: bool = False, db: Session = Depends(get_db)):
+    query = text("""
+        SELECT * FROM dbo.getf2taxon(
+            :vtaxon, :vlocation, :vcatalognumber, :vdaterange, :vother,
+            :vpoly, :vmap, :vstrict,:vdebug
+        )
+    """)
+    params = {
+        "vtaxon": t,
+        "vlocation": l,
+        "vcatalognumber": c,
+        "vdaterange": d,
+        "vother": q,
+        "vpoly": p,
+        "vmap": m,
+        "vstrict": vstrict,
+        "vdebug": vdebug
+    }
+    result = db.execute(query, params)
+    results = result.fetchall()
+    taxas = [
+        TaxaNumer(
+            ScientificName=row[0],
+            NumRecords=row[1]
+        ) for row in results
+    ]
+    return TaxaResponse(taxas=taxas)

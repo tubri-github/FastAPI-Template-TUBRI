@@ -138,27 +138,6 @@ app.mount('/', StaticFiles(directory=settings.STATIC_DIR), name="static")
 async def home():
     return "fastapi"
 
-@app.get("/taxa/", tags=["Taxa"])
-# async def read_multimedias(response: Response, genus: Optional[str] = None, dataset: schemas.DatasetName = schemas.DatasetName.glindataset, min_height: Optional[int] = None, max_height: Optional[int] = None, limit: Optional[int] = None, zipfile: bool = True,
-async def getTaxa():
-    '''
-        PUBLIC METHOD
-        A demo for getting multimedias and associated (meta)data, like IQ, extended metadata, hirecachy medias
-        - param genus: species genus
-        - param family: species family
-        - param institution: institution code
-        - param dataset: dataset name(multiple selection)
-        - param maxWidth: max width of image
-        - param minWidth: min width of image
-        - param maxHeight: max height of image
-        - param minHeight: min height of image
-        - param batchARKID: batch ARK ID
-        - param zipfile: return JSON or Zip file
-        - return: a list of 200 multimedias (with associated (meta)data). If zipfile is false, it will return 20 records
-    '''
-
-    return None
-
 @app.get("/providers/", tags=["Providers"])
 # async def read_multimedias(response: Response, genus: Optional[str] = None, dataset: schemas.DatasetName = schemas.DatasetName.glindataset, min_height: Optional[int] = None, max_height: Optional[int] = None, limit: Optional[int] = None, zipfile: bool = True,
 async def read_providers():
