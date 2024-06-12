@@ -1,36 +1,54 @@
 from pydantic import BaseModel
 from typing import List, Optional
 
+
 class Occurrence(BaseModel):
+    InstitutionCode: Optional[str]
+    CollectionCode: Optional[str]
+    CatalogNumber: Optional[str]
+    IndividualCount: Optional[str]
+    ScientificName: Optional[str]
+    Family: Optional[str]
+    PreparationType: Optional[str]
+    Tissues: Optional[str]
+    Latitude: Optional[str]
+    Longitude: Optional[str]
+    CoordinateUncertaintyInMeters: Optional[str]
+    HorizontalDatum: Optional[str]
+    Country: Optional[str]
+    StateProvince: Optional[str]
+    County: Optional[str]
+    Island: Optional[str]
+    IslandGroup: Optional[str]
+    Locality: Optional[str]
+    VerbatimElevation: Optional[str]
+    VerbatimDepth: Optional[str]
+    YearCollected: Optional[str]
+    MonthCollected: Optional[str]
+    DayCollected: Optional[str]
+    Collector: Optional[str]
+    GeorefMethod: Optional[str]
+    LatLongComments: Optional[str]
+    BasisOfRecord: Optional[str]
+    Remarks: Optional[str]
+    DateLastModified: Optional[str]
+
+
+class OccurrenceKML(BaseModel):
     institutionCode: Optional[str]
-    collectionCode: Optional[str]
     catalogNumber: Optional[str]
     individualCount: Optional[str]
     scientificName: Optional[str]
-    family: Optional[str]
-    preparationType: Optional[str]
-    tissues: Optional[str]
     latitude: Optional[str]
     longitude: Optional[str]
-    coordinateUncertaintyInMeters: Optional[str]
-    horizontalDatum: Optional[str]
-    country: Optional[str]
-    stateProvince: Optional[str]
-    county: Optional[str]
-    island: Optional[str]
-    islandGroup: Optional[str]
-    locality: Optional[str]
-    verbatimElevation: Optional[str]
-    verbatimDepth: Optional[str]
-    yearCollected: Optional[str]
     monthCollected: Optional[str]
     dayCollected: Optional[str]
-    collector: Optional[str]
-    georefMethod: Optional[str]
-    latLongComments: Optional[str]
-    basisOfRecord: Optional[str]
-    remarks: Optional[str]
-    dateLastModified: Optional[str]
+    yearCollected: Optional[str]
+
 
 class OccurrenceResponse(BaseModel):
     occurrences: List[Occurrence]
+
+
+class OccurrenceKMLResponse(BaseModel):
+    occurrences: List[OccurrenceKML]

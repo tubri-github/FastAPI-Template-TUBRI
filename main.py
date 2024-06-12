@@ -4,7 +4,6 @@
 """
 
 from fastapi import FastAPI, HTTPException, Depends
-from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from h11 import Request
 from starlette.middleware.sessions import SessionMiddleware
@@ -19,17 +18,15 @@ from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker, Session
 from typing import List, Optional
 from pydantic import BaseModel
-
-
-
-
 app = FastAPI(
     debug=settings.APP_DEBUG,
     version='1.0.0',
     docs_url=None,
     redoc_url=None,
     swagger_ui_oauth2_redirect_url=settings.SWAGGER_UI_OAUTH2_REDIRECT_URL,
+    root_path="/api/v1"
 )
+
 
 class SearchParams(BaseModel):
     vtaxon: Optional[str] = None
@@ -45,6 +42,7 @@ class SearchParams(BaseModel):
     vcols: Optional[str] = None
     voutputtype: bool = False
     vdebug: bool = False
+
 
 # custom_openapi
 def custom_openapi():
@@ -96,15 +94,13 @@ async def redoc_html():
 app.add_event_handler("startup", Events.startup(app))
 app.add_event_handler("shutdown", Events.stopping(app))
 
-# exception handle
-app.add_exception_handler(HTTPException, Exception.http_error_handler)
-app.add_exception_handler(RequestValidationError, Exception.http422_error_handler)
-app.add_exception_handler(Exception.UnicornException, Exception.unicorn_exception_handler)
-# application.add_exception_handler(DoesNotExist, Exception.mysql_does_not_exist)
-# application.add_exception_handler(IntegrityError, Exception.mysql_integrity_error)
-# application.add_exception_handler(ValidationError, Exception.mysql_validation_error)
-# application.add_exception_handler(OperationalError, Exception.mysql_operational_error)
-
+# # exception handle
+# app.add_exception_handler(HTTPException, http_error_handler)
+# app.add_exception_handler(RequestValidationError, http422_error_handler)
+# app.add_exception_handler(UnicornException, unicorn_exception_handler)
+# app.add_exception_handler(ValidationError, validation_exception_handler)
+# app.add_exception_handler(SQLAlchemyError, sql_exception_handler)
+# app.add_exception_handler(Exception, global_exception_handler)
 
 # middle ware
 app.add_middleware(Middleware.BaseMiddleware)
@@ -124,6 +120,7 @@ app.add_middleware(
     max_age=settings.SESSION_MAX_AGE
 )
 from api.api import router as api_router
+
 # router
 app.include_router(api_router)
 
@@ -137,6 +134,7 @@ app.mount('/', StaticFiles(directory=settings.STATIC_DIR), name="static")
 @app.get('/')
 async def home():
     return "fastapi"
+
 
 @app.get("/providers/", tags=["Providers"])
 # async def read_multimedias(response: Response, genus: Optional[str] = None, dataset: schemas.DatasetName = schemas.DatasetName.glindataset, min_height: Optional[int] = None, max_height: Optional[int] = None, limit: Optional[int] = None, zipfile: bool = True,
@@ -159,6 +157,7 @@ async def read_providers():
 
     return None
 
+
 @app.get("/occurrenceCount/", tags=["Occurrence"])
 # async def read_multimedias(response: Response, genus: Optional[str] = None, dataset: schemas.DatasetName = schemas.DatasetName.glindataset, min_height: Optional[int] = None, max_height: Optional[int] = None, limit: Optional[int] = None, zipfile: bool = True,
 async def read_multimedias():
@@ -180,6 +179,7 @@ async def read_multimedias():
 
     return None
 
+
 @app.get("/avaliablemaps/", tags=["Maps"])
 # async def read_multimedias(response: Response, genus: Optional[str] = None, dataset: schemas.DatasetName = schemas.DatasetName.glindataset, min_height: Optional[int] = None, max_height: Optional[int] = None, limit: Optional[int] = None, zipfile: bool = True,
 async def read_multimedias():
@@ -200,6 +200,7 @@ async def read_multimedias():
     '''
 
     return None
+
 
 @app.get("/location/", tags=["Locations"])
 # async def read_multimedias(response: Response, genus: Optional[str] = None, dataset: schemas.DatasetName = schemas.DatasetName.glindataset, min_height: Optional[int] = None, max_height: Optional[int] = None, limit: Optional[int] = None, zipfile: bool = True,

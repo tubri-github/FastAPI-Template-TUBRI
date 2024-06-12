@@ -1,4 +1,3 @@
-
 # -*- coding:utf-8 -*-
 """
 @Des: exception handler
@@ -9,67 +8,17 @@ from fastapi.responses import JSONResponse
 from typing import Union
 from fastapi.exceptions import RequestValidationError
 from pydantic import ValidationError
-# from tortoise.exceptions import OperationalError, DoesNotExist, IntegrityError, ValidationError as MysqlValidationError
-#
-#
-# async def mysql_validation_error(_: Request, exc: MysqlValidationError):
-#     """
-#     db fields validation error
-#     :param _:
-#     :param exc:
-#     :return:
-#     """
-#     print("ValidationError", exc)
-#     return JSONResponse({
-#         "code": -1,
-#         "message": exc.__str__(),
-#         "data": []
-#     }, status_code=422)
-#
-#
-# async def mysql_integrity_error(_: Request, exc: IntegrityError):
-#     """
-#     Integrity Error
-#     :param _:
-#     :param exc:
-#     :return:
-#     """
-#     print("IntegrityError", exc)
-#     return JSONResponse({
-#         "code": -1,
-#         "message": exc.__str__(),
-#         "data": []
-#     }, status_code=422)
-#
-#
-# async def mysql_does_not_exist(_: Request, exc: DoesNotExist):
-#     """
-#     db query object not found
-#     :param _:
-#     :param exc:
-#     :return:
-#     """
-#     print("DoesNotExist", exc)
-#     return JSONResponse({
-#         "code": -1,
-#         "message": "Records/Results not found",
-#         "data": []
-#     }, status_code=404)
-#
-#
-# async def mysql_operational_error(_: Request, exc: OperationalError):
-#     """
-#     db error exceptions
-#     :param _:
-#     :param exc:
-#     :return:
-#     """
-#     print("OperationalError", exc)
-#     return JSONResponse({
-#         "code": -1,
-#         "message": "数据操作失败",
-#         "data": []
-#     }, status_code=500)
+from sqlalchemy.exc import SQLAlchemyError
+
+from enum import Enum
+
+
+class ErrorCodes(Enum):
+    INV_PolyFormat = "invalid polygon format"
+    INV_MinTerms = "at least one term required"
+    INV_DateRangeFromat = "invalid date range"
+    INV_MapName = "invalid map name"
+    INV_PolygonWKT = "Polygon is not validly formatted WKT"
 
 
 async def http_error_handler(_: Request, exc: HTTPException):
@@ -80,12 +29,10 @@ async def http_error_handler(_: Request, exc: HTTPException):
     :return:
     """
     if exc.status_code == 401:
-        return JSONResponse({"detail": exc.detail}, status_code=exc.status_code)
+        return JSONResponse({exc.detail}, status_code=exc.status_code)
 
     return JSONResponse({
-        "code": exc.status_code,
-        "message": exc.detail,
-        "data": exc.detail
+        exc.detail
     }, status_code=exc.status_code, headers=exc.headers)
 
 
@@ -118,7 +65,7 @@ async def unicorn_exception_handler(_: Request, exc: UnicornException):
     })
 
 
-async def http422_error_handler(_: Request, exc: Union[RequestValidationError, ValidationError],) -> JSONResponse:
+async def http422_error_handler(_: Request, exc: Union[RequestValidationError, ValidationError], ) -> JSONResponse:
     """
     parameters validation
     :param _:
@@ -133,4 +80,36 @@ async def http422_error_handler(_: Request, exc: Union[RequestValidationError, V
             "data": exc.errors(),
         },
         status_code=422,
+    )
+
+
+class ValidationError(Exception):
+    def __init__(self, code: ErrorCodes):
+        self.code = code
+
+
+async def validation_exception_handler(request: Request, exc: ValidationError):
+    return JSONResponse(
+        status_code=200,
+        content={"error": exc.code.value},
+    )
+
+
+async def sql_exception_handler(_: Request, exc: SQLAlchemyError):
+    if "Polygon is not validly formatted WKT" in str(exc):
+        return JSONResponse(
+            status_code=200,
+            content={ErrorCodes.INV_PolygonWKT.value},
+        )
+    return JSONResponse(
+        status_code=200,
+        content={"A database error occurred." + str(exc)},
+    )
+
+
+async def global_exception_handler(_: Request, exc: Exception):
+
+    return JSONResponse(
+        status_code=200,
+        content= {str(exc)}
     )
