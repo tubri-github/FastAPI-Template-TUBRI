@@ -48,6 +48,7 @@ class OccurrenceKML(BaseModel):
 
 class OccurrenceResponse(BaseModel):
     occurrences: List[Occurrence]
+    total: int
 
 
 class OccurrenceKMLResponse(BaseModel):

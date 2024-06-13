@@ -88,7 +88,7 @@ async def occurrence_search(
     if num is not None:
         paging_string = f" LIMIT {num} OFFSET {set - 1}"
 
-    query = f"""SELECT * FROM dbo.getf2search(
+    query = f"""SELECT *,COUNT(*) OVER() AS total_count FROM dbo.getf2search(
             :vtaxon, :vlocation, :vcatalognumber, :vdaterange, :vother,
             :vpoly, :vmap, :vstrict, :vstartrl, :vrlcount, :vcols, false, :vdebug
         ) {paging_string}
@@ -160,8 +160,11 @@ async def occurrence_search(
             DateLastModified=row[28],
         ) for row in results
     ]
+    total_count = 0
+    if len(results)>0:
+        total_count = results[0][29]
     if fmt.lower() == 'json':
-        return OccurrenceResponse(occurrences=occurrences)
+        return OccurrenceResponse(occurrences=occurrences, total=total_count)
     return generate_response(occurrences, Occurrence, fmt, att, hdr)
 
 
@@ -174,14 +177,21 @@ async def taxa_num(
         q: Optional[str] = None,
         p: Optional[str] = None,
         m: Optional[str] = None,
+        num: Optional[int] = Query(None, ge=1, le=10000),
+        set: Optional[int] = 1,
         fmt: Optional[str] = 'csv',  # csv/json/txt
         att: Optional[int] = 0,  # 0-plain text;1-file
         db: Session = Depends(get_db)):
-    query = text("""
-        SELECT * FROM dbo.getf2taxon(
+    paging_string = ""
+    if num is not None:
+        paging_string = f" LIMIT {num} OFFSET {set - 1}"
+
+    query = text(f"""
+        SELECT *,
+    COUNT(*) OVER() AS total_count FROM dbo.getf2taxon(
             :vtaxon, :vlocation, :vcatalognumber, :vdaterange, :vother,
             :vpoly, :vmap, :vstrict,:vdebug
-        )
+        ){paging_string}
     """)
     vstrict = False,
     vdebug = False,
@@ -215,8 +225,11 @@ async def taxa_num(
             NumRecords=row[1]
         ) for row in results
     ]
+    total_count = 0
+    if len(results) > 0:
+        total_count = results[0][2]
     if fmt.lower() == 'json':
-        return TaxaResponse(taxas=taxas)
+        return TaxaResponse(taxas=taxas, total=total_count)
     return generate_response(taxas, TaxaNumer, fmt, att, hdr=1)
 
 
@@ -229,14 +242,21 @@ async def provider_citation(
         q: Optional[str] = None,
         p: Optional[str] = None,
         m: Optional[str] = None,
+        num: Optional[int] = Query(None, ge=1, le=10000),
+        set: Optional[int] = 1,
         fmt: Optional[str] = 'csv',  # csv/json/txt
         att: Optional[int] = 0,  # 0-plain text;1-file
         db: Session = Depends(get_db)):
-    query = text("""
-        SELECT * FROM dbo.getprovidercitations_f(
+    paging_string = ""
+    if num is not None:
+        paging_string = f" LIMIT {num} OFFSET {set - 1}"
+
+    query = text(f"""
+        SELECT  *,
+    COUNT(*) OVER() AS total_count FROM dbo.getprovidercitations_f(
             :vtaxon, :vlocation, :vcatalognumber, :vdaterange, :vother,
             :vpoly, :vmap, :vstrict,:vdebug
-        )
+        ){paging_string}
     """)
     vstrict = False,
     vdebug = False,
@@ -271,8 +291,11 @@ async def provider_citation(
             NumRecords=row[2]
         ) for row in results
     ]
+    total_count = 0
+    if len(results) > 0:
+        total_count = results[0][3]
     if fmt.lower() == 'json':
-        return ProviderResponse(providers=providers)
+        return ProviderResponse(providers=providers,total=total_count)
     return generate_response(providers, ProviderCitation, fmt, att, hdr=1)
 
 @router.get("/locations/", response_model=LocationResponse, tags=["Location"])
@@ -284,14 +307,21 @@ async def get_location(
         q: Optional[str] = None,
         p: Optional[str] = None,
         m: Optional[str] = None,
+        num: Optional[int] = Query(None, ge=1, le=10000),
+        set: Optional[int] = 1,
         fmt: Optional[str] = 'csv',  # csv/json/txt
         att: Optional[int] = 0,  # 0-plain text;1-file
         db: Session = Depends(get_db)):
-    query = text("""
-        SELECT * FROM dbo.getlocations(
+    paging_string = ""
+    if num is not None:
+        paging_string = f" LIMIT {num} OFFSET {set - 1}"
+
+    query = text(f"""
+        SELECT  *,
+    COUNT(*) OVER() AS total_count FROM dbo.getlocations(
             :vtaxon, :vlocation, :vcatalognumber, :vdaterange, :vother,
             :vpoly, :vmap, :vstrict,:vdebug
-        )
+        ){paging_string}
     """)
     vstrict = False,
     vdebug = False,
@@ -330,6 +360,9 @@ async def get_location(
             NumRecords=row[6],
         ) for row in results
     ]
+    total_count = 0
+    if len(results) > 0:
+        total_count = results[0][7]
     if fmt.lower() == 'json':
-        return LocationResponse(locations=locations)
+        return LocationResponse(locations=locations, total=total_count)
     return generate_response(locations, Location, fmt, att, hdr=1)

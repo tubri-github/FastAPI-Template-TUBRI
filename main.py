@@ -24,7 +24,7 @@ app = FastAPI(
     docs_url=None,
     redoc_url=None,
     swagger_ui_oauth2_redirect_url=settings.SWAGGER_UI_OAUTH2_REDIRECT_URL,
-    root_path="/api/v1"
+    root_path="/api"
 )
 
 

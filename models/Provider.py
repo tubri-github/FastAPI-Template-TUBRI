@@ -10,3 +10,4 @@ class ProviderCitation(BaseModel):
 
 class ProviderResponse(BaseModel):
     providers: List[ProviderCitation]
+    total: int

@@ -14,3 +14,4 @@ class Location(BaseModel):
 
 class LocationResponse(BaseModel):
     locations: List[Location]
+    total: int

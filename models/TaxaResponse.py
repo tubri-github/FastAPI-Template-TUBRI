@@ -9,3 +9,4 @@ class TaxaNumer(BaseModel):
 
 class TaxaResponse(BaseModel):
     taxas: List[TaxaNumer]
+    total:int
