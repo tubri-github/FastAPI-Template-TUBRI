@@ -58,13 +58,13 @@ async def verify_api_key(api: str = Depends(api_key_query), db: Session = Depend
 
 @router.get("/occurrence/", response_model=OccurrenceResponse, tags=["Occurrence"])
 async def occurrence_search(
-        t: Optional[str] = 'Notropis',
+        t: Optional[str] = None,#'Notropis',
         l: Optional[str] = None,
         c: Optional[str] = None,
         d: Optional[str] = None,
-        q: Optional[str] = 'ethanol or EtOH',
+        q: Optional[str] = None,#'ethanol or EtOH',
         p: Optional[
-            str] = 'POLYGON((-92.94140770116032 32.17747303410564,-89.86523582615962 32.400371789995546,-90.12890770116479 30.374771647554855,-93.38086082616299 30.52630678307028,-92.94140770116032 32.17747303410564))',
+            str] = None,#'POLYGON((-92.94140770116032 32.17747303410564,-89.86523582615962 32.400371789995546,-90.12890770116479 30.374771647554855,-93.38086082616299 30.52630678307028,-92.94140770116032 32.17747303410564))',
         m: Optional[str] = None,
         fmt: Optional[str] = 'csv',  # csv/json/txt
         att: Optional[int] = 0,  # 0-plain text;1-file
@@ -81,12 +81,15 @@ async def occurrence_search(
     # p, m = setup_wkt_and_map_name(p, m)
     t, taxon_strict = setup_taxon(t, db)
 
-    query = text("""
-        SELECT * FROM dbo.getf2search(
+    paging_string = ""
+    if num is not None:
+        paging_string = f" LIMIT {num} OFFSET {set - 1}"
+
+    query = f"""SELECT * FROM dbo.getf2search(
             :vtaxon, :vlocation, :vcatalognumber, :vdaterange, :vother,
             :vpoly, :vmap, :vstrict, :vstartrl, :vrlcount, :vcols, false, :vdebug
-        ) LIMIT :vnum OFFSET :vset
-    """)
+        ) {paging_string}
+    """
     vstrict = False,
     vdebug = False,
     params = {
@@ -101,16 +104,14 @@ async def occurrence_search(
         "vrlcount": None,
         "vcols": cols,
         "vstrict": vstrict,
-        "vdebug": vdebug,
-        "vnum": num,
-        "vset": set
+        "vdebug": vdebug
 
     }
     if isinstance(api, PlainTextResponse):
         return api
 
     try:
-        result = db.execute(query, params)
+        result = db.execute(text(query), params)
         results = result.fetchall()
     except SQLAlchemyError as e:
         if "Polygon is not validly formatted WKT" in str(e):
