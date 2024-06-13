@@ -10,12 +10,14 @@ from starlette.responses import JSONResponse, PlainTextResponse
 from config import settings
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker, Session
-from typing import List, Optional, Union
+from typing import List, Optional
 
 from core.Exception import ErrorCodes
 from core.Utils import generate_response, setup_location, setup_wkt_and_map_name, setup_taxon, setup_date_range
-from models.Occurrence import OccurrenceResponse, Occurrence, OccurrenceKML, OccurrenceKMLResponse
+from models.Occurrence import OccurrenceResponse, Occurrence
 from models.TaxaResponse import TaxaResponse, TaxaNumer
+from models.Provider import ProviderResponse, ProviderCitation
+from models.Location import LocationResponse, Location
 from sqlalchemy.exc import SQLAlchemyError
 
 router = APIRouter()
@@ -58,13 +60,14 @@ async def verify_api_key(api: str = Depends(api_key_query), db: Session = Depend
 
 @router.get("/occurrence/", response_model=OccurrenceResponse, tags=["Occurrence"])
 async def occurrence_search(
-        t: Optional[str] = None,#'Notropis',
+        t: Optional[str] = None,  # 'Notropis',
         l: Optional[str] = None,
         c: Optional[str] = None,
         d: Optional[str] = None,
-        q: Optional[str] = None,#'ethanol or EtOH',
+        q: Optional[str] = None,  # 'ethanol or EtOH',
         p: Optional[
-            str] = None,#'POLYGON((-92.94140770116032 32.17747303410564,-89.86523582615962 32.400371789995546,-90.12890770116479 30.374771647554855,-93.38086082616299 30.52630678307028,-92.94140770116032 32.17747303410564))',
+            str] = None,
+        # 'POLYGON((-92.94140770116032 32.17747303410564,-89.86523582615962 32.400371789995546,-90.12890770116479 30.374771647554855,-93.38086082616299 30.52630678307028,-92.94140770116032 32.17747303410564))',
         m: Optional[str] = None,
         fmt: Optional[str] = 'csv',  # csv/json/txt
         att: Optional[int] = 0,  # 0-plain text;1-file
@@ -171,8 +174,8 @@ async def taxa_num(
         q: Optional[str] = None,
         p: Optional[str] = None,
         m: Optional[str] = None,
-        fmt: Optional[str] = None,
-        att: Optional[str] = None,
+        fmt: Optional[str] = 'csv',  # csv/json/txt
+        att: Optional[int] = 0,  # 0-plain text;1-file
         db: Session = Depends(get_db)):
     query = text("""
         SELECT * FROM dbo.getf2taxon(
@@ -215,3 +218,118 @@ async def taxa_num(
     if fmt.lower() == 'json':
         return TaxaResponse(taxas=taxas)
     return generate_response(taxas, TaxaNumer, fmt, att, hdr=1)
+
+
+@router.get("/providers/", response_model=ProviderResponse, tags=["Provider"])
+async def provider_citation(
+        t: Optional[str] = None,
+        l: Optional[str] = None,
+        c: Optional[str] = None,
+        d: Optional[str] = None,
+        q: Optional[str] = None,
+        p: Optional[str] = None,
+        m: Optional[str] = None,
+        fmt: Optional[str] = 'csv',  # csv/json/txt
+        att: Optional[int] = 0,  # 0-plain text;1-file
+        db: Session = Depends(get_db)):
+    query = text("""
+        SELECT * FROM dbo.getprovidercitations_f(
+            :vtaxon, :vlocation, :vcatalognumber, :vdaterange, :vother,
+            :vpoly, :vmap, :vstrict,:vdebug
+        )
+    """)
+    vstrict = False,
+    vdebug = False,
+    params = {
+        "vtaxon": t,
+        "vlocation": l,
+        "vcatalognumber": c,
+        "vdaterange": d,
+        "vother": q,
+        "vpoly": p,
+        "vmap": m,
+        "vstrict": vstrict,
+        "vdebug": vdebug
+    }
+    try:
+        result = db.execute(query, params)
+        results = result.fetchall()
+    except SQLAlchemyError as e:
+        if "Polygon is not validly formatted WKT" in str(e):
+            return PlainTextResponse(
+                content=ErrorCodes.INV_PolygonWKT.value,
+                status_code=200
+            )
+        return PlainTextResponse(
+            content="A database error occurred.",
+            status_code=200
+        )
+    providers = [
+        ProviderCitation(
+            InstitutionCode=row[0],
+            Institution=row[1],
+            NumRecords=row[2]
+        ) for row in results
+    ]
+    if fmt.lower() == 'json':
+        return ProviderResponse(providers=providers)
+    return generate_response(providers, ProviderCitation, fmt, att, hdr=1)
+
+@router.get("/locations/", response_model=LocationResponse, tags=["Location"])
+async def get_location(
+        t: Optional[str] = None,
+        l: Optional[str] = None,
+        c: Optional[str] = None,
+        d: Optional[str] = None,
+        q: Optional[str] = None,
+        p: Optional[str] = None,
+        m: Optional[str] = None,
+        fmt: Optional[str] = 'csv',  # csv/json/txt
+        att: Optional[int] = 0,  # 0-plain text;1-file
+        db: Session = Depends(get_db)):
+    query = text("""
+        SELECT * FROM dbo.getlocations(
+            :vtaxon, :vlocation, :vcatalognumber, :vdaterange, :vother,
+            :vpoly, :vmap, :vstrict,:vdebug
+        )
+    """)
+    vstrict = False,
+    vdebug = False,
+    params = {
+        "vtaxon": t,
+        "vlocation": l,
+        "vcatalognumber": c,
+        "vdaterange": d,
+        "vother": q,
+        "vpoly": p,
+        "vmap": m,
+        "vstrict": vstrict,
+        "vdebug": vdebug
+    }
+    try:
+        result = db.execute(query, params)
+        results = result.fetchall()
+    except SQLAlchemyError as e:
+        if "Polygon is not validly formatted WKT" in str(e):
+            return PlainTextResponse(
+                content=ErrorCodes.INV_PolygonWKT.value,
+                status_code=200
+            )
+        return PlainTextResponse(
+            content="A database error occurred.",
+            status_code=200
+        )
+    locations = [
+        Location(
+            Country=row[0],
+            StateProvince=row[1],
+            County=row[2],
+            Locality=row[3],
+            Latitude=row[4],
+            Longitude=row[5],
+            NumRecords=row[6],
+        ) for row in results
+    ]
+    if fmt.lower() == 'json':
+        return LocationResponse(locations=locations)
+    return generate_response(locations, Location, fmt, att, hdr=1)
