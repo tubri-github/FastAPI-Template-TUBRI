@@ -19,6 +19,81 @@ from sqlalchemy.orm import Session
 from sqlalchemy.sql import text
 from starlette.exceptions import HTTPException
 
+from fastapi.responses import StreamingResponse
+
+from models.Occurrence import Occurrence
+
+
+async def kml_generator(data):
+    yield '<?xml version="1.0" encoding="UTF-8"?>\n'
+    yield '<kml xmlns="http://www.opengis.net/kml/2.2">\n'
+    yield '<Document>\n'
+
+    # Add Styles
+    yield """
+    <Style id="normalState">
+        <IconStyle>
+            <scale>.6</scale>
+            <Icon>
+                <href>http://www.museum.tulane.edu/nelson/arrow.png</href>
+            </Icon>
+        </IconStyle>
+        <LabelStyle>
+            <scale>0</scale>
+        </LabelStyle>
+    </Style>
+    <Style id="highlightState">
+        <IconStyle>
+            <Icon>
+                <href>http://www.museum.tulane.edu/nelson/arrow.png</href>
+            </Icon>
+            <scale>1.0</scale>
+        </IconStyle>
+        <LabelStyle>
+            <scale>1.0</scale>
+        </LabelStyle>
+    </Style>
+    <StyleMap id="s1">
+        <Pair>
+            <key>normal</key>
+            <styleUrl>#normalState</styleUrl>
+        </Pair>
+        <Pair>
+            <key>highlight</key>
+            <styleUrl>#highlightState</styleUrl>
+        </Pair>
+    </StyleMap>
+    """
+
+    for item in data:
+        yield '<Placemark>\n'
+        yield f'<name>{item.InstitutionCode} {item.CatalogNumber}</name>\n'
+        yield '<description>\n'
+        yield '<![CDATA[\n'
+        yield f'{item.InstitutionCode} {item.CatalogNumber}<br/>\n'
+        yield f'<i>{item.ScientificName}</i><br/>\n'
+        yield f'No. specimens: {item.IndividualCount}<br/>\n'
+        yield f'{item.Locality}; {item.County}; {item.StateProvince}; {item.Country}<br/>\n'
+        yield f'Collected by: {item.Collector}<br/>\n'
+        yield f'Year collected: {item.YearCollected}<br/>\n'
+        yield f'Month collected: {item.MonthCollected}<br/>\n'
+        yield f'Day collected: {item.DayCollected}<br/>\n'
+        yield f'<br/><a href="http://www.fishnet2.net/reporterror.aspx?InsCode={item.InstitutionCode}&CatNo={item.CatalogNumber}&SciName={item.ScientificName}">Wrong location or other problem? Click here to report it.</a><br/>\n'
+        yield ']]>\n'
+        yield '</description>\n'
+        yield '<styleUrl>#s1</styleUrl>\n'
+        yield '<Point>\n'
+        yield f'<coordinates>{item.Longitude},{item.Latitude}</coordinates>\n'
+        yield '</Point>\n'
+        yield '</Placemark>\n'
+
+    yield '</Document>\n'
+    yield '</kml>'
+
+def generate_kml_response(data, filename=None):
+    headers_dict = {'Content-Disposition': f'attachment; filename="{filename}"'} if filename else {}
+    return StreamingResponse(kml_generator(data), media_type="application/vnd.google-earth.kml+xml", headers=headers_dict)
+
 
 def get_csv_response(data, headers, filename=None, hasheader=True):
     output = io.StringIO()
@@ -68,6 +143,8 @@ def generate_response(data: List[BaseModel], model: Type[BaseModel], fmt='csv', 
         return get_csv_response(data_list, headers, filename=filename, hasheader=hasheader)
     elif fmt == "txt":
         return get_txt_response(data_list, headers, filename=filename, hasheader=hasheader)
+    elif fmt == 'kml' and model == Occurrence:  # return occurrence model data list only
+        return generate_kml_response(data, filename=filename)
     else:
         return PlainTextResponse("Invalid format specified", status_code=400)
 

@@ -69,7 +69,7 @@ async def occurrence_search(
             str] = None,
         # 'POLYGON((-92.94140770116032 32.17747303410564,-89.86523582615962 32.400371789995546,-90.12890770116479 30.374771647554855,-93.38086082616299 30.52630678307028,-92.94140770116032 32.17747303410564))',
         m: Optional[str] = None,
-        fmt: Optional[str] = 'csv',  # csv/json/txt
+        fmt: Optional[str] = Query("csv", enum=["csv", "txt", "kml"]),  # csv/json/txt
         att: Optional[int] = 0,  # 0-plain text;1-file
         # parameters for occurrence only
         cols: Optional[str] = None,
@@ -181,7 +181,11 @@ async def taxa_num(
         set: Optional[int] = 1,
         fmt: Optional[str] = 'csv',  # csv/json/txt
         att: Optional[int] = 0,  # 0-plain text;1-file
-        db: Session = Depends(get_db)):
+        db: Session = Depends(get_db),
+        api: str = Depends(verify_api_key)):
+
+    if isinstance(api, PlainTextResponse):
+        return api
     paging_string = ""
     if num is not None:
         paging_string = f" LIMIT {num} OFFSET {set - 1}"
@@ -246,7 +250,10 @@ async def provider_citation(
         set: Optional[int] = 1,
         fmt: Optional[str] = 'csv',  # csv/json/txt
         att: Optional[int] = 0,  # 0-plain text;1-file
-        db: Session = Depends(get_db)):
+        db: Session = Depends(get_db),
+        api: str = Depends(verify_api_key)):
+    if isinstance(api, PlainTextResponse):
+        return api
     paging_string = ""
     if num is not None:
         paging_string = f" LIMIT {num} OFFSET {set - 1}"
@@ -311,7 +318,10 @@ async def get_location(
         set: Optional[int] = 1,
         fmt: Optional[str] = 'csv',  # csv/json/txt
         att: Optional[int] = 0,  # 0-plain text;1-file
-        db: Session = Depends(get_db)):
+        db: Session = Depends(get_db),
+        api: str = Depends(verify_api_key)):
+    if isinstance(api, PlainTextResponse):
+        return api
     paging_string = ""
     if num is not None:
         paging_string = f" LIMIT {num} OFFSET {set - 1}"
