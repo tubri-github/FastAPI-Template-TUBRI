@@ -18,6 +18,7 @@ from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker, Session
 from typing import List, Optional
 from pydantic import BaseModel
+
 app = FastAPI(
     debug=settings.APP_DEBUG,
     version='1.0.0',
@@ -62,7 +63,20 @@ def custom_openapi():
 
 
 app.openapi = custom_openapi
+import time
+import logging
 
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    start_time = time.time()
+    response = await call_next(request)
+    process_time = time.time() - start_time
+    formatted_process_time = '{0:.2f}'.format(process_time)
+    logger.info(f"{request.method} {request.url} completed in {formatted_process_time}s with status code {response.status_code}")
+    return response
 
 # custom_swagger_ui_html
 @app.get("/docs", include_in_schema=False)

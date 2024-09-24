@@ -79,7 +79,7 @@ async def occurrence_search(
         db: Session = Depends(get_db),
         api: str = Depends(verify_api_key)):
     # Validate input parameters
-    l = setup_location(l)
+    #l = setup_location(l)
     d = setup_date_range(d)
     # p, m = setup_wkt_and_map_name(p, m)
     t, taxon_strict = setup_taxon(t, db)
@@ -117,13 +117,14 @@ async def occurrence_search(
         result = db.execute(text(query), params)
         results = result.fetchall()
     except SQLAlchemyError as e:
+        error_message = str(e)
         if "Polygon is not validly formatted WKT" in str(e):
             return PlainTextResponse(
                 content=ErrorCodes.INV_PolygonWKT.value,
                 status_code=200
             )
         return PlainTextResponse(
-            content="A database error occurred.",
+            content=f"A database error occurred.{error_message}",
             status_code=200
         )
 
@@ -190,6 +191,12 @@ async def taxa_num(
     if num is not None:
         paging_string = f" LIMIT {num} OFFSET {set - 1}"
 
+        # Validate input parameters
+        # l = setup_location(l)
+    d = setup_date_range(d)
+    # p, m = setup_wkt_and_map_name(p, m)
+    t, taxon_strict = setup_taxon(t, db)
+
     query = text(f"""
         SELECT *,
     COUNT(*) OVER() AS total_count FROM dbo.getf2taxon(
@@ -254,6 +261,13 @@ async def provider_citation(
         api: str = Depends(verify_api_key)):
     if isinstance(api, PlainTextResponse):
         return api
+
+    # Validate input parameters
+    # l = setup_location(l)
+    d = setup_date_range(d)
+    # p, m = setup_wkt_and_map_name(p, m)
+    t, taxon_strict = setup_taxon(t, db)
+
     paging_string = ""
     if num is not None:
         paging_string = f" LIMIT {num} OFFSET {set - 1}"
@@ -322,6 +336,13 @@ async def get_location(
         api: str = Depends(verify_api_key)):
     if isinstance(api, PlainTextResponse):
         return api
+
+    # Validate input parameters
+    # l = setup_location(l)
+    d = setup_date_range(d)
+    # p, m = setup_wkt_and_map_name(p, m)
+    t, taxon_strict = setup_taxon(t, db)
+
     paging_string = ""
     if num is not None:
         paging_string = f" LIMIT {num} OFFSET {set - 1}"
