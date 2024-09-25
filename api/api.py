@@ -3,7 +3,9 @@
 @Des: api router
 """
 from fastapi import APIRouter, Request, Depends, Query
-from fastapi.security import APIKeyQuery
+from fastapi.security import APIKeyQuery, HTTPAuthorizationCredentials,HTTPBearer
+import jwt
+from datetime import datetime, timedelta
 from starlette.exceptions import HTTPException
 from starlette.responses import JSONResponse, PlainTextResponse
 
@@ -36,9 +38,39 @@ def get_db():
         db.close()
 
 
+#front-end JWT
+SECRET_KEY = "Fishnet2_L*A"
+ALGORITHM = "HS256"
+ACCESS_TOKEN_EXPIRE_MINUTES = 15
+
+# generate JWT
+def create_jwt_token(data: dict):
+    to_encode = data.copy()
+    expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    to_encode.update({"exp": expire})
+    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    return encoded_jwt
+# verify JWT
+def verify_jwt(token: str):
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        return payload
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="Token has expired")
+    except jwt.InvalidTokenError:
+        raise HTTPException(status_code=403, detail="Invalid Token")
+
+@router.get("/clients")
+async def get_jwt_token():
+    # return a jwt token for the clients
+    token_data = {"sub": "frontend_access"}
+    token = create_jwt_token(token_data)
+    return {"token": token}
+
+#reular user api validation
+
 # api validation
 api_key_query = APIKeyQuery(name="api", auto_error=False)
-
 
 async def verify_api_key(api: str = Depends(api_key_query), db: Session = Depends(get_db)):
     if not api:
@@ -57,8 +89,30 @@ async def verify_api_key(api: str = Depends(api_key_query), db: Session = Depend
         )
     return api
 
+async def authenticate_request(
+    credentials: HTTPAuthorizationCredentials = Depends(HTTPBearer(auto_error=False)),
+    api: str = Depends(api_key_query),
+    db: Session = Depends(get_db)
+):
+    # 尝试 JWT 验证
+    if credentials:
+        token = credentials.credentials
+        try:
+            return verify_jwt(token)
+        except HTTPException:
+            pass  # 如果 JWT 验证失败，继续检查 API Key
 
-@router.get("/occurrence/", response_model=OccurrenceResponse, tags=["Occurrence"])
+    # 尝试 API Key 验证
+    if api:
+        query = text("""SELECT COUNT(*) FROM dbo."ApiKey" WHERE "ApiKey" = :api_key""")
+        result = db.execute(query, {"api_key": api}).scalar()
+        if result > 0:
+            return {"sub": "apikey_access"}
+
+    # 两种验证都失败
+    raise HTTPException(status_code=403, detail="Authentication failed")
+
+@router.get("/occurrence/", response_model=OccurrenceResponse, tags=["Occurrence"],dependencies=[Depends(authenticate_request)])
 async def occurrence_search(
         t: Optional[str] = None,  # 'Notropis',
         l: Optional[str] = None,
@@ -86,12 +140,12 @@ async def occurrence_search(
 
     paging_string = ""
     if num is not None:
-        paging_string = f" LIMIT {num} OFFSET {set - 1}"
+        paging_string = f" LIMIT {num} OFFSET {set - 1} * {num}"
 
     query = f"""SELECT *,COUNT(*) OVER() AS total_count FROM dbo.getf2search(
             :vtaxon, :vlocation, :vcatalognumber, :vdaterange, :vother,
             :vpoly, :vmap, :vstrict, :vstartrl, :vrlcount, :vcols, false, :vdebug
-        ) {paging_string}
+        ) ORDER BY catalognumber {paging_string}
     """
     vstrict = False,
     vdebug = False,
@@ -110,8 +164,8 @@ async def occurrence_search(
         "vdebug": vdebug
 
     }
-    if isinstance(api, PlainTextResponse):
-        return api
+    # if isinstance(api, PlainTextResponse):
+    #     return api
 
     try:
         result = db.execute(text(query), params)
@@ -169,7 +223,7 @@ async def occurrence_search(
     return generate_response(occurrences, Occurrence, fmt, att, hdr)
 
 
-@router.get("/taxa/", response_model=TaxaResponse, tags=["Taxa"])
+@router.get("/taxa/", response_model=TaxaResponse, tags=["Taxa"],dependencies=[Depends(authenticate_request)])
 async def taxa_num(
         t: Optional[str] = None,
         l: Optional[str] = None,
@@ -185,11 +239,11 @@ async def taxa_num(
         db: Session = Depends(get_db),
         api: str = Depends(verify_api_key)):
 
-    if isinstance(api, PlainTextResponse):
-        return api
+    # if isinstance(api, PlainTextResponse):
+    #     return api
     paging_string = ""
     if num is not None:
-        paging_string = f" LIMIT {num} OFFSET {set - 1}"
+        paging_string = f" LIMIT {num} OFFSET {set - 1} * {num}"
 
         # Validate input parameters
         # l = setup_location(l)
@@ -244,7 +298,7 @@ async def taxa_num(
     return generate_response(taxas, TaxaNumer, fmt, att, hdr=1)
 
 
-@router.get("/providers/", response_model=ProviderResponse, tags=["Provider"])
+@router.get("/providers/", response_model=ProviderResponse, tags=["Provider"],dependencies=[Depends(authenticate_request)])
 async def provider_citation(
         t: Optional[str] = None,
         l: Optional[str] = None,
@@ -259,8 +313,8 @@ async def provider_citation(
         att: Optional[int] = 0,  # 0-plain text;1-file
         db: Session = Depends(get_db),
         api: str = Depends(verify_api_key)):
-    if isinstance(api, PlainTextResponse):
-        return api
+    # if isinstance(api, PlainTextResponse):
+    #     return api
 
     # Validate input parameters
     # l = setup_location(l)
@@ -270,7 +324,7 @@ async def provider_citation(
 
     paging_string = ""
     if num is not None:
-        paging_string = f" LIMIT {num} OFFSET {set - 1}"
+        paging_string = f" LIMIT {num} OFFSET {set - 1} * {num}"
 
     query = text(f"""
         SELECT  *,
@@ -319,7 +373,7 @@ async def provider_citation(
         return ProviderResponse(providers=providers,total=total_count)
     return generate_response(providers, ProviderCitation, fmt, att, hdr=1)
 
-@router.get("/locations/", response_model=LocationResponse, tags=["Location"])
+@router.get("/locations/", response_model=LocationResponse, tags=["Location"],dependencies=[Depends(authenticate_request)])
 async def get_location(
         t: Optional[str] = None,
         l: Optional[str] = None,
@@ -334,8 +388,8 @@ async def get_location(
         att: Optional[int] = 0,  # 0-plain text;1-file
         db: Session = Depends(get_db),
         api: str = Depends(verify_api_key)):
-    if isinstance(api, PlainTextResponse):
-        return api
+    # if isinstance(api, PlainTextResponse):
+    #     return api
 
     # Validate input parameters
     # l = setup_location(l)
@@ -345,7 +399,7 @@ async def get_location(
 
     paging_string = ""
     if num is not None:
-        paging_string = f" LIMIT {num} OFFSET {set - 1}"
+        paging_string = f" LIMIT {num} OFFSET {set - 1} * {num}"
 
     query = text(f"""
         SELECT  *,
