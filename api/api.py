@@ -22,7 +22,7 @@ from models.Provider import ProviderResponse, ProviderCitation
 from models.Location import LocationResponse, Location
 from sqlalchemy.exc import SQLAlchemyError
 
-router = APIRouter()
+router = APIRouter(prefix='/v1')
 
 DATABASE_URL = settings.DATABASE_URL
 
