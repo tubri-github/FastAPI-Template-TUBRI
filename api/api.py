@@ -3,7 +3,7 @@
 @Des: api router
 """
 from fastapi import APIRouter, Request, Depends, Query
-from fastapi.security import APIKeyQuery, HTTPAuthorizationCredentials,HTTPBearer
+from fastapi.security import APIKeyQuery, HTTPAuthorizationCredentials, HTTPBearer
 import jwt
 from datetime import datetime, timedelta
 from starlette.exceptions import HTTPException
@@ -18,7 +18,7 @@ from core.Exception import ErrorCodes
 from core.Utils import generate_response, setup_location, setup_wkt_and_map_name, setup_taxon, setup_date_range
 from models.Occurrence import OccurrenceResponse, Occurrence
 from models.TaxaResponse import TaxaResponse, TaxaNumer
-from models.Provider import ProviderResponse, ProviderCitation
+from models.Provider import ProviderResponse, ProviderCitation, ProviderDetails, ProviderListResponse
 from models.Location import LocationResponse, Location
 from sqlalchemy.exc import SQLAlchemyError
 
@@ -38,10 +38,11 @@ def get_db():
         db.close()
 
 
-#front-end JWT
+# front-end JWT
 SECRET_KEY = "Fishnet2_L*A"
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 15
+
 
 # generate JWT
 def create_jwt_token(data: dict):
@@ -50,6 +51,8 @@ def create_jwt_token(data: dict):
     to_encode.update({"exp": expire})
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
+
+
 # verify JWT
 def verify_jwt(token: str):
     try:
@@ -60,6 +63,7 @@ def verify_jwt(token: str):
     except jwt.InvalidTokenError:
         raise HTTPException(status_code=403, detail="Invalid Token")
 
+
 @router.get("/clients")
 async def get_jwt_token():
     # return a jwt token for the clients
@@ -67,10 +71,12 @@ async def get_jwt_token():
     token = create_jwt_token(token_data)
     return {"token": token}
 
-#reular user api validation
+
+# reular user api validation
 
 # api validation
 api_key_query = APIKeyQuery(name="api", auto_error=False)
+
 
 async def verify_api_key(api: str = Depends(api_key_query), db: Session = Depends(get_db)):
     if not api:
@@ -89,10 +95,11 @@ async def verify_api_key(api: str = Depends(api_key_query), db: Session = Depend
         )
     return api
 
+
 async def authenticate_request(
-    credentials: HTTPAuthorizationCredentials = Depends(HTTPBearer(auto_error=False)),
-    api: str = Depends(api_key_query),
-    db: Session = Depends(get_db)
+        credentials: HTTPAuthorizationCredentials = Depends(HTTPBearer(auto_error=False)),
+        api: str = Depends(api_key_query),
+        db: Session = Depends(get_db)
 ):
     # 尝试 JWT 验证
     if credentials:
@@ -112,7 +119,9 @@ async def authenticate_request(
     # 两种验证都失败
     raise HTTPException(status_code=403, detail="Authentication failed")
 
-@router.get("/occurrence/", response_model=OccurrenceResponse, tags=["Occurrence"],dependencies=[Depends(authenticate_request)])
+
+@router.get("/occurrence/", response_model=OccurrenceResponse, tags=["Occurrence"],
+            dependencies=[Depends(authenticate_request)])
 async def occurrence_search(
         t: Optional[str] = None,  # 'Notropis',
         l: Optional[str] = None,
@@ -133,7 +142,7 @@ async def occurrence_search(
         db: Session = Depends(get_db),
         api: str = Depends(verify_api_key)):
     # Validate input parameters
-    #l = setup_location(l)
+    # l = setup_location(l)
     d = setup_date_range(d)
     # p, m = setup_wkt_and_map_name(p, m)
     t, taxon_strict = setup_taxon(t, db)
@@ -216,14 +225,14 @@ async def occurrence_search(
         ) for row in results
     ]
     total_count = 0
-    if len(results)>0:
+    if len(results) > 0:
         total_count = results[0][29]
     if fmt.lower() == 'json':
         return OccurrenceResponse(occurrences=occurrences, total=total_count)
     return generate_response(occurrences, Occurrence, fmt, att, hdr)
 
 
-@router.get("/taxa/", response_model=TaxaResponse, tags=["Taxa"],dependencies=[Depends(authenticate_request)])
+@router.get("/taxa/", response_model=TaxaResponse, tags=["Taxa"], dependencies=[Depends(authenticate_request)])
 async def taxa_num(
         t: Optional[str] = None,
         l: Optional[str] = None,
@@ -238,7 +247,6 @@ async def taxa_num(
         att: Optional[int] = 0,  # 0-plain text;1-file
         db: Session = Depends(get_db),
         api: str = Depends(verify_api_key)):
-
     # if isinstance(api, PlainTextResponse):
     #     return api
     paging_string = ""
@@ -298,7 +306,8 @@ async def taxa_num(
     return generate_response(taxas, TaxaNumer, fmt, att, hdr=1)
 
 
-@router.get("/providers/", response_model=ProviderResponse, tags=["Provider"],dependencies=[Depends(authenticate_request)])
+@router.get("/providers/", response_model=ProviderResponse, tags=["Provider"],
+            dependencies=[Depends(authenticate_request)])
 async def provider_citation(
         t: Optional[str] = None,
         l: Optional[str] = None,
@@ -370,10 +379,44 @@ async def provider_citation(
     if len(results) > 0:
         total_count = results[0][3]
     if fmt.lower() == 'json':
-        return ProviderResponse(providers=providers,total=total_count)
+        return ProviderResponse(providers=providers, total=total_count)
     return generate_response(providers, ProviderCitation, fmt, att, hdr=1)
 
-@router.get("/locations/", response_model=LocationResponse, tags=["Location"],dependencies=[Depends(authenticate_request)])
+
+@router.get("/providerlist/", response_model=ProviderListResponse, tags=["Provider"],
+            dependencies=[Depends(authenticate_request)])
+async def provider_citation(
+        db: Session = Depends(get_db),
+        api: str = Depends(verify_api_key)):
+    query = text(f"""
+        SELECT  * from dbo.getproviders();
+    """)
+    try:
+        result = db.execute(query)
+        results = result.fetchall()
+    except SQLAlchemyError as e:
+        return PlainTextResponse(
+            content="A database error occurred.",
+            status_code=200
+        )
+    providers = [
+        ProviderDetails(
+            Institution=row[0],
+            Status=row[1],
+            Cached=row[2],
+            Declared=row[3],
+            Skipped=row[4],
+            ResourceName=row[5],
+        ) for row in results
+    ]
+    total_count = 0
+    if len(results) > 0:
+        total_count = results[0][3]
+    return ProviderListResponse(providers=providers, total=total_count)
+
+
+@router.get("/locations/", response_model=LocationResponse, tags=["Location"],
+            dependencies=[Depends(authenticate_request)])
 async def get_location(
         t: Optional[str] = None,
         l: Optional[str] = None,
