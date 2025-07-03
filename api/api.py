@@ -186,8 +186,10 @@ async def occurrence_search(
                 content=ErrorCodes.INV_PolygonWKT.value,
                 status_code=200
             )
+        else:
+            print({error_message})
         return PlainTextResponse(
-            content=f"A database error occurred.{error_message}",
+            content=f"A database error occurred.",
             status_code=200
         )
 
